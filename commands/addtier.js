@@ -29,7 +29,7 @@ module.exports = {
         { name: '🌎 South America', value: 'SA' }, { name: '🌏 Oceania', value: 'OC' }
       ))
     .addStringOption(o => o.setName('skin').setDescription('Skin URL (Opsional)').setRequired(false)),
-  
+
   async execute(interaction) {
     const username = interaction.options.getString('username');
     const discordUser = interaction.options.getUser('user');
@@ -37,22 +37,22 @@ module.exports = {
     const tier = interaction.options.getString('tier');
     const categorySlug = interaction.options.getString('category');
     const skin_url = interaction.options.getString('skin');
-    
+
     const uuid = await getUUID(username);
 
     // Get Category first, error if missing
     const { data: c, error: catErr } = await supabase.from('categories').select('id, name').eq('slug', categorySlug).single();
-    
+
     if (catErr || !c) {
       return interaction.editReply({ content: `❌ Kategori **${categorySlug}** tidak ditemukan di database.` });
     }
 
     // Upsert Player
     const { data: p, error: pErr } = await supabase.from('players').upsert({
-      username, 
-      discord_id: discordUser.id, 
-      country_code, 
-      skin_url, 
+      username,
+      discord_id: discordUser.id,
+      country_code,
+      skin_url,
       mc_uuid: uuid
     }, { onConflict: 'username' }).select().single();
 
@@ -62,17 +62,17 @@ module.exports = {
     }
 
     // Upsert Tier
-    const { error: tErr } = await supabase.from('player_tiers').upsert({ 
-      player_id: p.id, 
-      category_id: c.id, 
-      tier 
+    const { error: tErr } = await supabase.from('player_tiers').upsert({
+      player_id: p.id,
+      category_id: c.id,
+      tier
     }, { onConflict: 'player_id,category_id' });
 
     if (tErr) {
       console.error(tErr);
       return interaction.editReply({ content: '❌ Gagal menyimpan data tier ke database.' });
     }
-    
+
     const { totalPoints, badge } = await recalcPlayer(p.id);
 
     const embed = new EmbedBuilder()
@@ -84,7 +84,7 @@ module.exports = {
         { name: '👤 Player', value: `\`${username}\`\n<@${discordUser.id}>`, inline: true },
         { name: '📂 Category', value: `**${c.name || categorySlug}**`, inline: true },
         { name: '🏅 Assigned Tier', value: `${TIER_EMOJI[tier] || ''} **${tier}**`, inline: true },
-        
+
         { name: '🌍 Region', value: `${REGION_EMOJI[country_code] || ''} ${country_code}`, inline: true },
         { name: '🏆 Total Points', value: `**${totalPoints}** PTS`, inline: true },
         { name: '✨ Current Rank', value: `${badge.emoji} **${badge.label}**`, inline: true }
